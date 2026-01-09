@@ -269,6 +269,7 @@ if __name__ == "__main__":
                 temperature,
                 args.last_temp)
         temperatures = None
+        ladder_num *= 2 # By experience doubling the number of rungs is better for SST2/ST
     elif args.temp_list is not None:
         ladder_num = len(args.temp_list)
         temperatures = args.temp_list

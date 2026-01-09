@@ -325,7 +325,7 @@ def compute_exchange_prob(
     ax.get_legend().remove()
 
     # print(all_temp_change_num)
-    logger.info(exchange_time / step_time)
+    logger.info(f'exchange step = {exchange_time / step_time}')
 
     ex_prob = temp_change_num / len(df) * exchange_time / step_time
 
@@ -663,7 +663,7 @@ def plot_weight_RMSD(
 
 def compute_moving_average(df, ener="new_pot", col_name="avg_ener"):
 
-    temp_list = df["Aim Temp (K)"].unique()
+    temp_list = list(df["Aim Temp (K)"].unique())
     temp_list.sort()
     temp_list_avg = {temp: 0 for temp in temp_list}
     temp_list_num = {temp: 0 for temp in temp_list}
@@ -688,7 +688,7 @@ def compute_weight_RMSD(df, final_weight_dict=None, ener="new_pot"):
     else:
         temp_final_avg = final_weight_dict
 
-    temp_list = df["Aim Temp (K)"].unique()
+    temp_list = list(df["Aim Temp (K)"].unique())
     temp_list.sort()
 
     for temp in temp_list:

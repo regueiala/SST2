@@ -343,6 +343,7 @@ if __name__ == "__main__":
             args.last_temp,
             sst2_score=True)
         temperatures = None
+        ladder_num *= 2 # By experience doubling the number of rungs is better for SST2/ST
         logger.info(f"Estimated number of lambda ladder = {ladder_num}")
 
     elif args.temp_list is not None:
