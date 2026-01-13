@@ -1,3 +1,22 @@
+"""
+Launch MD simulation of membrane protein with positional restraints on protein and lipids.
+The protocol has been inspired by Charmm-GUI membrane protein equilibration protocol.
+
+It proposes:
+- Energy minimization of the solvated system with positional restraints, with a maximum of 10000 iterations.
+- Several equilibration steps with decreasing positional restraints, using 2 fs integration timestep:
+    - NVT equilibration with strong restraints (4000 kJ/mol/nm² on BB, 2000 kJ/mol/nm² on SC, 1000 kJ/mol/nm² on lipid Z)
+    - NVT equilibration with medium restraints (2000 kJ/mol/nm² on BB, 1000 kJ/mol/nm² on SC, 400 kJ/mol/nm² on lipid Z)
+    - NPT equilibration with low restraints (1000 kJ/mol/nm² on BB, 500 kJ/mol/nm² on SC, 400 kJ/mol/nm² on lipid Z)
+    - NPT equilibration with weak restraints (500 kJ/mol/nm² on BB, 200 kJ/mol/nm² on SC, 200 kJ/mol/nm² on lipid Z)
+    - NPT equilibration with very weak restraints (200 kJ/mol/nm² on BB, 50 kJ/mol/nm² on SC, 40 kJ/mol/nm² on lipid Z)
+    - NPT equilibration with restraints only on BB (50 kJ/mol/nm²)
+- Final NPT production run without restraints, using 4 fs integration timestep with HMR.
+
+Usage:
+    python bin/launch_MD_Memb_prot.py --crd input.rst7 --top input.prm7 --pdb input.pdb --out output_folder --name output_name_prefix
+"""
+
 import argparse
 import logging
 import os
@@ -25,27 +44,69 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--crd", dest='crdfile', required=True, help='Input coordinate file : rst7, xml ...',)
-    parser.add_argument("--top", dest='topfile', required=True, help='Input topology file : parm7, pdb ...',)
-    parser.add_argument("--pdb", dest='pdbfile', required=True, help='Input PDB file',)
-
-    parser.add_argument("--out", dest='folder_name', default="MD_output", help='Output folder name',)
-    parser.add_argument("--name", dest='file_name', default="MD", help='Output file name prefix',)
+    parser.add_argument(
+        "--crd",
+        dest="crdfile",
+        required=True,
+        help="Input coordinate file : rst7, xml ...",
+    )
+    parser.add_argument(
+        "--top",
+        dest="topfile",
+        required=True,
+        help="Input topology file : parm7, pdb ...",
+    )
+    parser.add_argument(
+        "--pdb",
+        dest="pdbfile",
+        required=True,
+        help="Input PDB file",
+    )
+    parser.add_argument(
+        "--out",
+        dest="folder_name",
+        default="MD_output",
+        help="Output folder name",
+    )
+    parser.add_argument(
+        "--name",
+        dest="file_name",
+        default="MD",
+        help="Output file name prefix",
+    )
+    parser.add_argument(
+        "-time",
+        action="store",
+        dest="time",
+        help="Production Simulation time, default=1000 (ns)",
+        type=float,
+        default=1000,
+    )
     return parser.parse_args()
+
 
 def restraints(system, coor, inpcrd, fc_bb, fc_sc, fc_lpos):
     """Add positional restraints to the system.
 
-    Args:
-        system (openmm.System): OpenMM system to which restraints will be added.
-        coor (pdb_numpy.Coor): Coordinate object for atom selection.
-        inpcrd (app.AmberInpcrdFile): Input coordinates containing atom positions.
-        fc_bb (float): Force constant for backbone restraints.
-        fc_sc (float): Force constant for sidechain restraints.
-        fc_lpos (float): Force constant for lipid Z-position restraints.
+    Parameters
+    ----------
+    system: openmm.System
+        OpenMM system to which restraints will be added.
+    coor: pdb_numpy.Coor
+        Coordinate object for atom selection.
+    inpcrd: app.AmberInpcrdFile
+        Input coordinates containing atom positions.
+    fc_bb: float
+        Force constant for backbone restraints.
+    fc_sc: float
+        Force constant for sidechain restraints.
+    fc_lpos: float
+        Force constant for lipid Z-position restraints.
 
-    Returns:
-        openmm.System: System with positional restraints added.
+    Returns
+    -------
+        system: openmm.System
+            System with positional restraints added.
     """
     # PROTEIN BB + SC
     posresPROT = openmm.CustomExternalForce(
@@ -60,8 +121,8 @@ def restraints(system, coor, inpcrd, fc_bb, fc_sc, fc_lpos):
     posresPROT.addPerParticleParameter("y0")
     posresPROT.addPerParticleParameter("z0")
 
-    bb_list = coor.select_atoms("backbone and not name H*").num -1
-    sc_list = coor.select_atoms(" protein and not backbone and noh").num -1
+    bb_list = coor.select_atoms("backbone and not name H*").num - 1
+    sc_list = coor.select_atoms(" protein and not backbone and noh").num - 1
 
     # Backbone restraints
     if fc_bb > 0:
@@ -78,9 +139,7 @@ def restraints(system, coor, inpcrd, fc_bb, fc_sc, fc_lpos):
     system.addForce(posresPROT)
 
     # LIPID Z
-    posresMEMB = openmm.CustomExternalForce(
-        "k_lpos * periodicdistance(0,0,z,0,0,z0)^2"
-    )
+    posresMEMB = openmm.CustomExternalForce("k_lpos * periodicdistance(0,0,z,0,0,z0)^2")
     posresMEMB.addGlobalParameter("k_lpos", fc_lpos)
     posresMEMB.addPerParticleParameter("z0")
 
@@ -96,7 +155,6 @@ def restraints(system, coor, inpcrd, fc_bb, fc_sc, fc_lpos):
 
 
 if __name__ == "__main__":
-
     args = parse_args()
 
     ###########################
@@ -148,7 +206,9 @@ if __name__ == "__main__":
     save_step_dcd = 10000
 
     system = restraints(system, coor, inpcrd, fc_bb=4000, fc_sc=2000, fc_lpos=1000)
-    simulation = Simulation(prmtop.topology, system, integrator, platform, platformProperties)
+    simulation = Simulation(
+        prmtop.topology, system, integrator, platform, platformProperties
+    )
     simulation.context.setPositions(inpcrd.positions)
     simulation.context.setPeriodicBoxVectors(*inpcrd.boxVectors)
 
@@ -175,7 +235,9 @@ if __name__ == "__main__":
 
     print(simulation.context.getState(getEnergy=True).getPotentialEnergy())
 
-    simulation.context.setVelocitiesToTemperature(temperature, random.randrange(1, 10000))
+    simulation.context.setVelocitiesToTemperature(
+        temperature, random.randrange(1, 10000)
+    )
 
     logger.info("- Equilibration step 1")
     tools.simulate(
@@ -203,12 +265,62 @@ if __name__ == "__main__":
     barostat_added = False
 
     Steps = [
-        dict(index="equi_2", k_bb=2000, k_sc=1000, k_lpos=400, dt=1 * unit.femtosecond, tot_steps=125000, barostat=False),
-        dict(index="equi_3", k_bb=1000, k_sc=500, k_lpos=400, dt=1 * unit.femtosecond, tot_steps=125000, barostat=True),
-        dict(index="equi_4", k_bb=500, k_sc=200, k_lpos=200, dt=2 * unit.femtosecond, tot_steps=250000, barostat=False),
-        dict(index="equi_5", k_bb=200, k_sc=50, k_lpos=40, dt=2 * unit.femtosecond, tot_steps=250000, barostat=False),
-        dict(index="equi_6", k_bb=50, k_sc=0, k_lpos=0, dt=2 * unit.femtosecond, tot_steps=500000, barostat=False),
-        dict(index="prod", k_bb=0, k_sc=0, k_lpos=0, dt=4 * unit.femtosecond, tot_steps=250000, barostat=False),
+        dict(
+            index="equi_2",
+            k_bb=2000,
+            k_sc=1000,
+            k_lpos=400,
+            dt=1 * unit.femtosecond,
+            tot_steps=125000,
+            barostat=False,
+        ),
+        dict(
+            index="equi_3",
+            k_bb=1000,
+            k_sc=500,
+            k_lpos=400,
+            dt=1 * unit.femtosecond,
+            tot_steps=125000,
+            barostat=True,
+        ),
+        dict(
+            index="equi_4",
+            k_bb=500,
+            k_sc=200,
+            k_lpos=200,
+            dt=2 * unit.femtosecond,
+            tot_steps=250000,
+            barostat=False,
+        ),
+        dict(
+            index="equi_5",
+            k_bb=200,
+            k_sc=50,
+            k_lpos=40,
+            dt=2 * unit.femtosecond,
+            tot_steps=250000,
+            barostat=False,
+        ),
+        dict(
+            index="equi_6",
+            k_bb=50,
+            k_sc=0,
+            k_lpos=0,
+            dt=2 * unit.femtosecond,
+            tot_steps=500000,
+            barostat=False,
+        ),
+        dict(
+            index="prod",
+            k_bb=0,
+            k_sc=0,
+            k_lpos=0,
+            dt=4 * unit.femtosecond,
+            tot_steps=int(
+                np.ceil(args.time * unit.nanoseconds / (4 * unit.femtosecond))
+            ),
+            barostat=False,
+        ),
     ]
 
     for step in Steps:

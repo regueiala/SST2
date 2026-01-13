@@ -13,7 +13,7 @@ import pdbfixer
 
 from openmm.app import ForceField
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src/")))
 
 import pdb_numpy
 
@@ -51,13 +51,15 @@ def prepare_pdb(in_pdb, out_cif, pH=7.0, overwrite=False):
     fixer.findMissingResidues()
     fixer.findNonstandardResidues()
     fixer.replaceNonstandardResidues()
-    #fixer.removeHeterogens(False)
+    # fixer.removeHeterogens(False)
     fixer.findMissingAtoms()
     fixer.addMissingAtoms()
     fixer.addMissingHydrogens(pH)
 
     app.PDBxFile.writeFile(fixer.topology, fixer.positions, open(out_cif, "w"))
-    app.PDBFile.writeFile(fixer.topology, fixer.positions, open(out_cif[:-3]+"pdb", "w"))
+    app.PDBFile.writeFile(
+        fixer.topology, fixer.positions, open(out_cif[:-3] + "pdb", "w")
+    )
 
     return
 
@@ -176,45 +178,69 @@ def implicit_sim(
     )
 
 
-
 def parser_input():
-
     # Parse arguments :
-    parser = argparse.ArgumentParser(
-        description='Simulate a pdb in implicit solvant.')
-    parser.add_argument('-pdb', action="store", dest="pdb",
-                        help='Input PDB file', type=str, required=True)
-    parser.add_argument('-n', action="store", dest="name",
-                        help='Output file name', type=str, required=True)
-    parser.add_argument('-dir', action="store", dest="out_dir",
-                        help='Output directory for intermediate files',
-                        type=str, required=True)
-    parser.add_argument('-pad', action="store", dest="pad",
-                        help='Box padding, default=1.5 nm',
-                        type=float,
-                        default=1.5)
-    parser.add_argument('-eq_time',
-                        action="store",
-                        dest="eq_time",
-                        help='Implicit Solvent Equilibration time, default=10 (ns)',
-                        type=float,
-                        default=10)
-    parser.add_argument('-hmr',
-                        action="store",
-                        dest="hmr",
-                        help='Hydrogen mass repartition, default=3.0 a.m.u.',
-                        type=float,
-                        default=3.0)
-    parser.add_argument('-ref_temp',
-                        action="store",
-                        dest="ref_temp",
-                        help='Base temperature, default=300(K)',
-                        type=float,
-                        default=300)
+    parser = argparse.ArgumentParser(description="Simulate a pdb in implicit solvant.")
+    parser.add_argument(
+        "-pdb",
+        action="store",
+        dest="pdb",
+        help="Input PDB file",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "-n",
+        action="store",
+        dest="name",
+        help="Output file name",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "-dir",
+        action="store",
+        dest="out_dir",
+        help="Output directory for intermediate files",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "-pad",
+        action="store",
+        dest="pad",
+        help="Box padding, default=1.5 nm",
+        type=float,
+        default=1.5,
+    )
+    parser.add_argument(
+        "-eq_time",
+        action="store",
+        dest="eq_time",
+        help="Implicit Solvent Equilibration time, default=10 (ns)",
+        type=float,
+        default=10,
+    )
+    parser.add_argument(
+        "-hmr",
+        action="store",
+        dest="hmr",
+        help="Hydrogen mass repartition, default=3.0 a.m.u.",
+        type=float,
+        default=3.0,
+    )
+    parser.add_argument(
+        "-ref_temp",
+        action="store",
+        dest="ref_temp",
+        help="Base temperature, default=300(K)",
+        type=float,
+        default=300,
+    )
     return parser
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     my_parser = parser_input()
     args = my_parser.parse_args()
     logger.info(args)
@@ -225,21 +251,19 @@ if __name__ == "__main__":
     if not os.path.exists(OUT_PATH):
         os.makedirs(OUT_PATH)
 
-    prepare_pdb(args.pdb,
-                f"{OUT_PATH}/{name}_fixed.cif",
-                pH=7.0,
-                overwrite=False)
+    prepare_pdb(args.pdb, f"{OUT_PATH}/{name}_fixed.cif", pH=7.0, overwrite=False)
 
     # should be usable soon:
-    #forcefield_files = ['amber14-all.xml', 'amber14/tip3pfb.xml', 'implicit/obc2.xml']
-    forcefield_files = ['amber99sbnmr.xml', 'amber99_obc.xml']
+    # forcefield_files = ['amber14-all.xml', 'amber14/tip3pfb.xml', 'implicit/obc2.xml']
+    forcefield_files = ["amber99sbnmr.xml", "amber99_obc.xml"]
     impl_forcefield = ForceField(*forcefield_files)
 
     logger.info(f"- Run implicit simulation")
 
-    implicit_sim(f"{OUT_PATH}/{name}_fixed.cif",
-                 impl_forcefield,
-                 args.eq_time,
-                 f"{OUT_PATH}/{name}_implicit_equi",
-                 temp = args.ref_temp,)
-
+    implicit_sim(
+        f"{OUT_PATH}/{name}_fixed.cif",
+        impl_forcefield,
+        args.eq_time,
+        f"{OUT_PATH}/{name}_implicit_equi",
+        temp=args.ref_temp,
+    )
